@@ -11,19 +11,39 @@ A multi-portal healthcare platform for **Patients**, **Doctors**, and an **Admin
 
 ## Table of Contents
 
-1. [Project Execution Flow](#1-project-execution-flow)
-2. [Tech Stack](#2-tech-stack)
-3. [Folder Structure](#3-folder-structure)
-4. [Setup Guide](#4-setup-guide)
-5. [Environment Variables](#5-environment-variables-envexample)
-6. [Database Schema (TiDB)](#6-database-schema-tidb)
-7. [API Documentation](#7-api-documentation)
-8. [Mistral AI LLM Integration](#8-mistral-ai-llm-integration)
-9. [Google Calendar Setup](#9-google-calendar-setup-oauth-20)
-10. [Slot Conflict & Double-Booking Prevention](#10-slot-conflict--double-booking-prevention)
-11. [Notification Reliability](#11-notification-reliability-email--calendar)
-12. [Background Jobs](#12-background-jobs)
-13. [Deployment](#13-deployment)
+- [Preview / Screenshots](#preview--screenshots)
+- [1. Project Execution Flow](#1-project-execution-flow)
+- [2. Tech Stack](#2-tech-stack)
+- [3. Folder Structure](#3-folder-structure)
+- [4. Setup Guide](#4-setup-guide)
+- [5. Environment Variables](#5-environment-variables-envexample)
+- [6. Database Schema (TiDB)](#6-database-schema-tidb)
+- [7. API Documentation](#7-api-documentation)
+- [8. Mistral AI LLM Integration](#8-mistral-ai-llm-integration)
+- [9. Google Calendar Setup](#9-google-calendar-setup-oauth-20)
+- [10. Slot Conflict & Double-Booking Prevention](#10-slot-conflict--double-booking-prevention)
+- [11. Notification Reliability](#11-notification-reliability-email--calendar)
+- [12. Background Jobs](#12-background-jobs)
+- [13. Deployment](#13-deployment)
+
+---
+
+## Preview / Screenshots
+
+<p align="center">
+  <img src="images/login_portal.png" alt="Login Portal" width="90%" /><br/>
+  <strong>Login Portal</strong> — Provides quick access login shortcuts for Patient, Doctor, and Admin roles.
+</p>
+
+<p align="center">
+  <img src="images/patient_portal.png" alt="Patient Portal" width="90%" /><br/>
+  <strong>Patient Portal</strong> — Live booking flow, upcoming appointments with AI pre-visit briefs, and calendar synchronization details.
+</p>
+
+<p align="center">
+  <img src="images/doctor_portal.png" alt="Doctor Portal" width="90%" /><br/>
+  <strong>Doctor Portal</strong> — Appointment queue sorted by AI-computed urgency, real-time triage guidelines, clinical notes, and prescription input.
+</p>
 
 ---
 
