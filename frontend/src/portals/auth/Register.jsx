@@ -6,6 +6,27 @@ import { useAuth } from '../../context/AuthContext';
 import toast from '../../components/Toast';
 
 export default function Register() {
+  const SPECIALISATIONS = [
+    'Cardiology',
+    'Dermatology',
+    'Endocrinology',
+    'Gastroenterology',
+    'General Practice',
+    'Gynaecology',
+    'Nephrology',
+    'Neurology',
+    'Oncology',
+    'Ophthalmology',
+    'Orthopaedics',
+    'Paediatrics',
+    'Psychiatry',
+    'Pulmonology',
+    'Radiology',
+    'Rheumatology',
+    'Surgery',
+    'Urology',
+  ];
+
   const [form, setForm] = useState({
     fullName: '',
     email: '',
@@ -13,6 +34,7 @@ export default function Register() {
     confirmPassword: '',
     phone: '',
     role: 'patient',
+    specialisation: '',
   });
   const [loading, setLoading] = useState(false);
   const { register } = useAuth();
@@ -33,6 +55,10 @@ export default function Register() {
       return toast.error('Password must be at least 6 characters');
     }
 
+    if (form.role === 'doctor' && !form.specialisation) {
+      return toast.error('Please select a specialisation');
+    }
+
     setLoading(true);
     try {
       const user = await register({
@@ -41,6 +67,7 @@ export default function Register() {
         password: form.password,
         phone: form.phone,
         role: form.role,
+        ...(form.role === 'doctor' && { specialisation: form.specialisation }),
       });
       toast.success(`Welcome, ${user.fullName}! Your account has been created.`);
       const portalMap = { admin: '/admin', doctor: '/doctor', patient: '/patient' };
@@ -145,6 +172,26 @@ export default function Register() {
               <option value="admin">Admin</option>
             </select>
           </div>
+
+          {/* Specialisation — shown only when role is doctor */}
+          {form.role === 'doctor' && (
+            <div className="form-group">
+              <label className="form-label" htmlFor="reg-specialisation">Specialisation</label>
+              <select
+                id="reg-specialisation"
+                name="specialisation"
+                className="form-select"
+                value={form.specialisation}
+                onChange={handleChange}
+                required
+              >
+                <option value="">Select specialisation…</option>
+                {SPECIALISATIONS.map((s) => (
+                  <option key={s} value={s}>{s}</option>
+                ))}
+              </select>
+            </div>
+          )}
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-4)' }}>
             <div className="form-group">

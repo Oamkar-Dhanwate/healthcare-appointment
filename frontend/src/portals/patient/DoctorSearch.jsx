@@ -24,7 +24,7 @@ export default function PatientDashboard() {
   const [loading, setLoading] = useState(true);
 
   // Booking states
-  const [selectedSpecialisation, setSelectedSpecialisation] = useState('Cardiology');
+  const [selectedSpecialisation, setSelectedSpecialisation] = useState('All');
   const [selectedDoctor, setSelectedDoctor] = useState(null);
   const [slots, setSlots] = useState([]);
   const [selectedSlot, setSelectedSlot] = useState(null);
@@ -38,7 +38,7 @@ export default function PatientDashboard() {
   const [durationDays, setDurationDays] = useState(1);
   const [severity, setSeverity] = useState('mild');
 
-  const specialisations = ['Cardiology', 'Dermatology', 'Internal Medicine', 'Pediatrics', 'Neurology'];
+  const specialisations = ['All', ...Array.from(new Set(doctors.map((d) => d.specialisation).filter(Boolean))).sort()];
 
   useEffect(() => {
     fetchDashboardData();
@@ -46,10 +46,16 @@ export default function PatientDashboard() {
 
   const [doctorSearchTerm, setDoctorSearchTerm] = useState('');
 
-  // Filter doctors by specialisation and search query
+  // Filter doctors by specialisation pill and search query (name OR specialisation)
   const filteredDoctors = doctors.filter((doc) => {
-    const matchesSpec = doc.specialisation.toLowerCase() === selectedSpecialisation.toLowerCase();
-    const matchesSearch = doc.user?.fullName.toLowerCase().includes(doctorSearchTerm.toLowerCase());
+    const matchesSpec =
+      selectedSpecialisation === 'All' ||
+      doc.specialisation?.toLowerCase() === selectedSpecialisation.toLowerCase();
+    const term = doctorSearchTerm.toLowerCase();
+    const matchesSearch =
+      !term ||
+      doc.user?.fullName?.toLowerCase().includes(term) ||
+      doc.specialisation?.toLowerCase().includes(term);
     return matchesSpec && matchesSearch;
   });
 
