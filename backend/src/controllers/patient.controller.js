@@ -281,6 +281,7 @@ export async function confirmAppointment(req, res, next) {
           html: doctorEmailData.html,
           appointmentId: appointment.id,
           patientEmail: appointment.patient.email,
+          doctorEmail: appointment.doctor.user.email,
           patientName: appointment.patient.fullName,
           doctorName: appointment.doctor.user.fullName,
           slotStart: appointment.slotStart.toISOString(),
@@ -289,19 +290,26 @@ export async function confirmAppointment(req, res, next) {
       },
     });
 
-    // Send confirmation email to patient (async, non-blocking)
+    // Send confirmation email immediately to patient
+    const patientEmail = appointment.patient.email;
+    const doctorEmail = appointment.doctor.user.email;
+
     sendEmail({
-      to: appointment.patient.email,
+      to: patientEmail,
       ...patientEmailData,
-    }).catch((err) =>
+    }).then(() =>
+      console.log(`[Email] Booking confirmation sent to patient: ${patientEmail}`)
+    ).catch((err) =>
       console.error("[Email] Patient confirmation send failed:", err.message)
     );
 
-    // Send confirmation email to doctor (async, non-blocking)
+    // Send confirmation email immediately to doctor
     sendEmail({
-      to: appointment.doctor.user.email,
+      to: doctorEmail,
       ...doctorEmailData,
-    }).catch((err) =>
+    }).then(() =>
+      console.log(`[Email] New booking alert sent to doctor: ${doctorEmail}`)
+    ).catch((err) =>
       console.error("[Email] Doctor confirmation send failed:", err.message)
     );
 
