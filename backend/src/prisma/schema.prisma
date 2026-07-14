@@ -1,0 +1,219 @@
+// Prisma schema for Healthcare Appointment Manager
+// Uses MySQL connector (TiDB is MySQL wire-compatible)
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Users (shared auth table) ───────────────────────────────────────────────
+
+model User {
+  id           Int       @id @default(autoincrement())
+  email        String    @unique @db.VarChar(255)
+  passwordHash String    @map("password_hash") @db.VarChar(255)
+  role         UserRole
+  fullName     String    @map("full_name") @db.VarChar(255)
+  phone        String?   @db.VarChar(20)
+  createdAt    DateTime  @default(now()) @map("created_at")
+
+  // Google Calendar OAuth tokens (encrypted)
+  googleRefreshToken String? @map("google_refresh_token") @db.Text
+
+  // Relations
+  doctorProfile    Doctor?
+  appointments     Appointment[]  @relation("PatientAppointments")
+  notifications    Notification[]
+  medicationReminders MedicationReminder[]
+
+  @@map("users")
+}
+
+enum UserRole {
+  admin
+  doctor
+  patient
+}
+
+// ─── Doctor profile (1:1 with users where role='doctor') ─────────────────────
+
+model Doctor {
+  id              Int      @id @default(autoincrement())
+  userId          Int      @unique @map("user_id")
+  specialisation  String   @db.VarChar(120)
+  slotDurationMin Int      @default(15) @map("slot_duration_min")
+  workingHours    Json     @map("working_hours")   // {"mon":["10:00","17:00"], ...}
+  consultationFee Decimal? @map("consultation_fee") @db.Decimal(10, 2)
+
+  // Relations
+  user         User           @relation(fields: [userId], references: [id])
+  leaves       DoctorLeave[]
+  appointments Appointment[]
+
+  @@index([specialisation], name: "idx_specialisation")
+  @@map("doctors")
+}
+
+// ─── Doctor leave days ───────────────────────────────────────────────────────
+
+model DoctorLeave {
+  id        Int      @id @default(autoincrement())
+  doctorId  Int      @map("doctor_id")
+  leaveDate DateTime @map("leave_date") @db.Date
+  reason    String?  @db.VarChar(255)
+
+  // Relations
+  doctor Doctor @relation(fields: [doctorId], references: [id])
+
+  @@unique([doctorId, leaveDate], name: "uq_doctor_leave")
+  @@map("doctor_leaves")
+}
+
+// ─── Appointments ────────────────────────────────────────────────────────────
+
+model Appointment {
+  id                    Int               @id @default(autoincrement())
+  doctorId              Int               @map("doctor_id")
+  patientId             Int               @map("patient_id")
+  slotStart             DateTime          @map("slot_start")
+  slotEnd               DateTime          @map("slot_end")
+  status                AppointmentStatus @default(held)
+  holdExpiresAt         DateTime?         @map("hold_expires_at")
+  googleEventIdPatient  String?           @map("google_event_id_patient") @db.VarChar(255)
+  googleEventIdDoctor   String?           @map("google_event_id_doctor") @db.VarChar(255)
+  createdAt             DateTime          @default(now()) @map("created_at")
+
+  // Relations
+  doctor      Doctor       @relation(fields: [doctorId], references: [id])
+  patient     User         @relation("PatientAppointments", fields: [patientId], references: [id])
+  symptomForm SymptomForm?
+  visitNote   VisitNote?
+
+  @@unique([doctorId, slotStart, status], name: "uq_doctor_slot_confirmed")
+  @@map("appointments")
+}
+
+enum AppointmentStatus {
+  held
+  confirmed
+  cancelled
+  completed
+  leave_cancelled
+}
+
+// ─── Pre-visit symptom form + AI summary ─────────────────────────────────────
+
+model SymptomForm {
+  id                 Int            @id @default(autoincrement())
+  appointmentId      Int            @unique @map("appointment_id")
+  rawSymptoms        String         @map("raw_symptoms") @db.Text
+  durationDays       Int?           @map("duration_days")
+  severity           Severity?
+  urgencyLevel       UrgencyLevel?  @map("urgency_level")
+  chiefComplaint     String?        @map("chief_complaint") @db.VarChar(255)
+  suggestedQuestions Json?          @map("suggested_questions")
+  aiStatus           AiStatus       @default(pending) @map("ai_status")
+  createdAt          DateTime       @default(now()) @map("created_at")
+
+  // Relations
+  appointment Appointment @relation(fields: [appointmentId], references: [id])
+
+  @@map("symptom_forms")
+}
+
+enum Severity {
+  mild
+  moderate
+  severe
+}
+
+enum UrgencyLevel {
+  Low
+  Medium
+  High
+}
+
+enum AiStatus {
+  pending
+  ok
+  failed
+}
+
+// ─── Post-visit notes, prescription, AI patient summary ──────────────────────
+
+model VisitNote {
+  id              Int      @id @default(autoincrement())
+  appointmentId   Int      @unique @map("appointment_id")
+  clinicalNotes   String   @map("clinical_notes") @db.Text
+  prescription    Json                                       // [{drug, dosage, frequency, duration_days}]
+  patientSummary  String?  @map("patient_summary") @db.Text
+  aiStatus        AiStatus @default(pending) @map("ai_status")
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  // Relations
+  appointment         Appointment          @relation(fields: [appointmentId], references: [id])
+  medicationReminders MedicationReminder[]
+
+  @@map("visit_notes")
+}
+
+// ─── Medication reminder schedule ────────────────────────────────────────────
+
+model MedicationReminder {
+  id          Int      @id @default(autoincrement())
+  visitNoteId Int      @map("visit_note_id")
+  patientId   Int      @map("patient_id")
+  drugName    String   @map("drug_name") @db.VarChar(255)
+  scheduledAt DateTime @map("scheduled_at")
+  sent        Boolean  @default(false)
+
+  // Relations
+  visitNote VisitNote @relation(fields: [visitNoteId], references: [id])
+  patient   User      @relation(fields: [patientId], references: [id])
+
+  @@index([scheduledAt, sent], name: "idx_scheduled_pending")
+  @@map("medication_reminders")
+}
+
+// ─── Notification log + retry tracking ───────────────────────────────────────
+
+model Notification {
+  id        Int                @id @default(autoincrement())
+  userId    Int                @map("user_id")
+  type      NotificationType
+  channel   NotificationChannel
+  status    NotificationStatus @default(queued)
+  payload   Json?                                    // email subject/body, event details, etc.
+  attempts  Int                @default(0)
+  lastError String?            @map("last_error") @db.Text
+  createdAt DateTime           @default(now()) @map("created_at")
+
+  // Relations
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([status, attempts], name: "idx_status_attempts")
+  @@map("notifications")
+}
+
+enum NotificationType {
+  booking_confirmation
+  reminder
+  cancellation
+  leave_notice
+  medication
+}
+
+enum NotificationChannel {
+  email
+  calendar
+}
+
+enum NotificationStatus {
+  queued
+  sent
+  failed
+}
